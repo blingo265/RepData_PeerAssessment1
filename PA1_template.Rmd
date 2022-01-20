@@ -56,6 +56,12 @@ A plot of the daily activity pattern -
 ```{r echo=TRUE, fig.width= 12, fig.height= 4}
 plot(x = df3$`Interval (mins)`, y = df3$Average_Steps_PerInterval, type = 'l', main = "Daily activity pattern", xlab = "Time interval (min)", ylab = "Average number of steps")
 ```
+Maximum steps interval is -
+```{r echo=TRUE}
+paste(df3[which.max(df3$Average_Steps_PerInterval), 'Interval (mins)'], "mins")
+```
+
+
 
 ## Imputing missing values
 ```{r echo=TRUE}

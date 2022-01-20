@@ -7,19 +7,109 @@ output:
 
 
 ## Loading and preprocessing the data
+Read the activity dataset.
+```{r echo= TRUE}
+df<- read.csv('activity/activity.csv', stringsAsFactors = FALSE)
+head(df)
+```
 
+Preprocess the data to set columns to proper datatypes, for further analysis.
 
+```{r echo= TRUE}
+df$steps<- as.integer(df$steps)
+df$date<- as.Date(df$date, format = "%Y-%m-%d")
+df$interval<- as.integer(df$interval)
+head(df)
+```
 
 ## What is mean total number of steps taken per day?
+First we find the total number of steps (sum) taken per day.
+```{r echo=TRUE}
+df1<-aggregate(df$steps, by = list(df$date), FUN = sum, na.rm =TRUE)
+names(df1)<- c('Date', 'Total_Steps_PerDay')
+head(df1, 20)
+```
 
+Show a histogram for total number of steps taken each day. 'Green' vertical line marks the mean, whereas the 'Red' vertical line marks the median.
+```{r echo=TRUE}
+hist(df1$Total_Steps_PerDay, main = 'Ignoring missing data: Histogram for Total Steps per day', xlab = 'Daily Steps')
+abline(v = mean(df1$Total_Steps_PerDay), col = 'green', lwd =3)
+abline(v = median(df1$Total_Steps_PerDay), col = 'red', lwd =3)
+```
+
+Calculate the mean total steps taken per day - 
+```{r echo=TRUE}
+print(paste('mean:', round(mean(df1$Total_Steps_PerDay),0), 'steps'))
+print(paste('median:', median(df1$Total_Steps_PerDay), 'steps'))
+```
 
 
 ## What is the average daily activity pattern?
+```{r echo=TRUE}
+df3<- aggregate(df$steps, by = list(df$interval), FUN = mean, na.rm = TRUE)
+names(df3)<- c('Interval (mins)', 'Average_Steps_PerInterval')
+df3$Average_Steps_PerInterval<- round(df3$Average_Steps_PerInterval, 2)
+head(df3, 20)
+```
 
-
+A plot of the daily activity pattern - 
+```{r echo=TRUE, fig.width= 12, fig.height= 4}
+plot(x = df3$`Interval (mins)`, y = df3$Average_Steps_PerInterval, type = 'l', main = "Daily activity pattern", xlab = "Time interval (min)", ylab = "Average number of steps")
+```
 
 ## Imputing missing values
+```{r echo=TRUE}
+print(paste('Total missing values:' , sum(is.na(df$steps))))
+```
 
 
+We fill na's by the average steps in the same interval.
+```{r echo=TRUE}
+df4<- df
+for(i in 1:nrow(df4)){
+  if(is.na(df4[i, 'steps']))
+  df4[i, 'steps']<- df3[df3$`Interval (mins)` == df4$interval[i], 'Average_Steps_PerInterval']
+}
+head(df4, 20)
+```
+
+Plot the histogram of dataset after missing values have been imputed. Calculate the new mean and median.
+```{r echo=TRUE}
+df5<-aggregate(df4$steps, by = list(df4$date), FUN = sum, na.rm =TRUE)
+names(df5)<- c('Date', 'Total_Steps_PerDay')
+hist(df5$Total_Steps_PerDay, main = 'After treating missing values: Histogram for Total Steps per day', xlab = 'Daily Steps')
+```
+Calculate the mean total steps taken per day after imputing the missing values - 
+```{r echo=TRUE}
+print(paste('new mean:', round(mean(df5$Total_Steps_PerDay),0), 'steps'))
+print(paste('new median:', median(df5$Total_Steps_PerDay), 'steps'))
+```
+This method of missing data imputation increases the mean and median of the data.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r echo=TRUE, fig.width= 12, fig.height= 5, warning=FALSE}
+library(ggplot2)
+library(ggpubr)
+
+df4$Weekday<- weekdays(df4$date, abbreviate = T)
+df4$Weekend<- ifelse(df4$Weekday %in% c('Sat', 'Sun'), 'weekend', 'weekday')
+
+#weekends
+df6<- aggregate(df4[df4$Weekend == "weekend",]$steps, by = list(df4[df4$Weekend == "weekend",]$interval), FUN = mean, na.rm = TRUE)
+names(df6)<- c('Interval (mins)', 'Average_Steps_PerInterval')
+df6$Average_Steps_PerInterval<- round(df6$Average_Steps_PerInterval, 2)
+df6$Weekend<- "weekend"
+
+#weekdays
+df7<- aggregate(df4[df4$Weekend == "weekday",]$steps, by = list(df4[df4$Weekend == "weekday",]$interval), FUN = mean, na.rm = TRUE)
+names(df7)<- c('Interval (mins)', 'Average_Steps_PerInterval')
+df7$Average_Steps_PerInterval<- round(df7$Average_Steps_PerInterval, 2)
+df7$Weekend<- "weekday"
+
+p1<- ggplot(df6, aes(y = Average_Steps_PerInterval, x = `Interval (mins)`))+geom_line(size =2, color = "blue")+ labs( x = NULL, y = NULL, title = NULL) + facet_grid(.~Weekend)+theme_light()+ theme(strip.background.x = element_rect(fill="#FFFFE0"),strip.text = element_text(size=12, colour="#000000", hjust = 0.5, vjust = 0.5), axis.ticks.x = element_blank(), axis.text.x = element_blank())
+p2<- ggplot(df7, aes(y = Average_Steps_PerInterval, x = `Interval (mins)`))+geom_line(size =2, color = "blue")+ labs( x = NULL, y = NULL, title = NULL)+ facet_grid(.~Weekend) + theme_light()+ theme(strip.background.x = element_rect(fill="#FFFFE0"),strip.text = element_text(size=12, colour="#000000", hjust = 0.5, vjust = 0.5))
+
+p<- ggarrange(p1, p2, ncol = 1)
+annotate_figure(p , bottom = "Interval (min)", left = text_grob("Number of steps", rot = 90))
+```
+
